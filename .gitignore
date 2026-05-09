@@ -1,0 +1,2 @@
+# alle dateien mit der Endung .o ignorieren
+*/*.o
