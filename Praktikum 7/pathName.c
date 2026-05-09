@@ -25,7 +25,6 @@ char *getFullPathName(const char *name, const char *ENVName)
     // Buffer für einzelne Strings/Pfade:
     char *input_copy = strdup(envalue);    // envvalue einmal kopieren, damit das original mit ":" erhalten bleibt. Siehe man strdup (muss free() werden)
     char *token = strtok(input_copy, ":"); // siehe man strtok
-    int i = 1;                             // Zähler. Optional, sieht aber schön aus.
     while (token != NULL)
     {
         printf("Suche in: %s\n", token);
@@ -35,7 +34,6 @@ char *getFullPathName(const char *name, const char *ENVName)
         if (myDir == NULL)
         { // Im Fehlerfall (kein gültiges Verzeichnis) wird einfach diese iteration übersprungen.
             fprintf(stderr, "Etwas ist schiefgelaufen. Code: %d, Fehler: %s (continue)\n\n", errno, strerror(errno));
-            i++;
             token = strtok(NULL, ":"); // Nächsten token aktivieren.
             continue;
         }
@@ -62,7 +60,6 @@ char *getFullPathName(const char *name, const char *ENVName)
         }
         printf("\n");
         token = strtok(NULL, ":");
-        i++;
         closedir(myDir);
     }
     printf("Die Datei \"%s\" konnte nicht im ENV \"%s\" gefunden werden.\n", name, ENVName);
