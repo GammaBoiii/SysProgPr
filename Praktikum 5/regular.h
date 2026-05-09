@@ -1,0 +1,1 @@
+int regularFile(const char *dateiname);

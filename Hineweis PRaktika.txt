@@ -1,0 +1,4 @@
+Bei Warnungen werden Punkte abgezogen
+Programmablauf bennennung, ggf Ablaufplan
+Fehlerbehandlung
+Intensive Fragen
