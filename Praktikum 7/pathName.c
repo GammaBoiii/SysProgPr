@@ -24,6 +24,11 @@ char *getFullPathName(const char *name, const char *ENVName)
     // ENV aufteilen
     // Buffer für einzelne Strings/Pfade:
     char *input_copy = strdup(envalue);    // envvalue einmal kopieren, damit das original mit ":" erhalten bleibt. Siehe man strdup (muss free() werden)
+    if(input_copy == NULL)
+    {
+        fprintf(stderr, "Fehler bei strdup. Code: %d, Fehler: %s\n", errno, strerror(errno));
+        return NULL;
+    }
     char *token = strtok(input_copy, ":"); // siehe man strtok
     while (token != NULL)
     {
@@ -33,7 +38,7 @@ char *getFullPathName(const char *name, const char *ENVName)
         myDir = opendir(token);
         if (myDir == NULL)
         { // Im Fehlerfall (kein gültiges Verzeichnis) wird einfach diese iteration übersprungen.
-            fprintf(stderr, "Etwas ist schiefgelaufen. Code: %d, Fehler: %s (continue)\n\n", errno, strerror(errno));
+            fprintf(stderr, "Etwas ist beim Verzeichnis öffnen schiefgelaufen. Code: %d, Fehler: %s (continue)\n\n", errno, strerror(errno));
             token = strtok(NULL, ":"); // Nächsten token aktivieren.
             continue;
         }

@@ -1,11 +1,11 @@
+#include "pathName.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "pathName.h"
-
-
+#include <time.h>
 
 int main(int argc, char const *argv[])
 {
+    clock_t start = clock();
     // Argumente überprüfen
     // 1. keine Argumente:
     if (argc <= 2)
@@ -20,5 +20,8 @@ int main(int argc, char const *argv[])
     char *res;
     printf("Die suche ergibt: %s\n", (res = getFullPathName(argv[1], argv[2])) ? res : "kein Treffer...");
     free(res); // braucht man hier eigentlich nicht, weil exit das übernimmt.
+    clock_t end = clock();
+    double time_taken = (double)(end - start) / CLOCKS_PER_SEC;
+    printf("Die Suche hat %f Sekunden gedauert.\n", time_taken);
     exit(EXIT_SUCCESS);    
 }
