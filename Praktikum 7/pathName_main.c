@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include "pathName.h"
 
-char* getFullPathName(const char *name, const char *ENVName);
+
 
 int main(int argc, char const *argv[])
 {

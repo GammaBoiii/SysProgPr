@@ -1,0 +1,1 @@
+char* getFullPathName(const char *name, const char *ENVName);

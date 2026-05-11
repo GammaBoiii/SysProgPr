@@ -50,6 +50,13 @@ char *getFullPathName(const char *name, const char *ENVName)
 
                 // Gesamten pfad bauen:
                 char *buffer = malloc(sizeof(char) * (strlen(token) + strlen(entry->d_name) + 2));
+                if(buffer == NULL)
+                {
+                    fprintf(stderr, "Fehler bei malloc. Code: %d, Fehler: %s\n", errno, strerror(errno));
+                    free(input_copy);
+                    closedir(myDir);
+                    return NULL;
+                }
                 sprintf(buffer, "%s/%s", token, entry->d_name);
 
                 // Erfolgreiche Suche, methode wird zum beenden vorbereitet:
