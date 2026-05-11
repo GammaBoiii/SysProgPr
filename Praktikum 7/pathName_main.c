@@ -6,6 +6,7 @@
 int main(int argc, char const *argv[])
 {
     clock_t start = clock();
+    
     // Argumente überprüfen
     // 1. keine Argumente:
     if (argc <= 2)
@@ -23,5 +24,5 @@ int main(int argc, char const *argv[])
     clock_t end = clock();
     double time_taken = (double)(end - start) / CLOCKS_PER_SEC;
     printf("Die Suche hat %f Sekunden gedauert.\n", time_taken);
-    exit(EXIT_SUCCESS);    
+        exit(EXIT_SUCCESS);    
 }
