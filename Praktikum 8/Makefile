@@ -1,12 +1,11 @@
-#Variablen:
 CFLAGS = -g -Wall -Wextra -fsanitize=address
 
-prog: kp.o
-	gcc ${CFLAGS} -o prog kp.o
+starter: starter.o
+	gcc $(CFLAGS) -o starter starter.o
 
-kp.o: kp.c
-	gcc ${CFLAGS} -c kp.c
+starter.o: starter.c
+	gcc $(CFLAGS) -c starter.c
 
 .PHONY: clean
 clean:
-	rm -f *.o prog
+	rm -f *.o starter
