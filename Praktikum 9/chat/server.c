@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <time.h>
+#include <errno.h>
 
 void cleanup() {
     // Message que löschen:
@@ -29,7 +30,7 @@ void cleanup() {
 
 struct message {
     long type;
-    char text[100];
+    char text[125]; // GLEICHE GRÖ?E WIE BEIM CLIENT!!!
 };
 
 int main()
@@ -54,8 +55,13 @@ int main()
     printf("message key: %d queue id: %d\n", key, msgid);
     for(;;) {
         printf("Server läuft und erwartet Nachricht (%ld)\n", time(NULL));
-        msgrcv(msgid, &rec_msg, sizeof(rec_msg.text), 1, IPC_NOWAIT);
-        if(rec_msg.text[0] != '\0') {
+        ssize_t msgrcv_result = msgrcv(msgid, &rec_msg, sizeof(rec_msg.text), 1, IPC_NOWAIT);
+        if(msgrcv_result == -1) {
+            // Fehler beim Empfangen der Nachricht
+            if(errno != ENOMSG) {
+                fprintf(stderr, "Fehler beim Empfangen der Nachricht: %s\n", strerror(errno));
+            }
+        } else {
             printf("\nNachricht empfangen:\t%s\n", rec_msg.text);
             //Handling der Nachricht:
             char* token = strtok(rec_msg.text, ":");
@@ -68,3 +74,21 @@ int main()
     }
     return 0;
 }
+
+
+
+  /*if(msgrcv_result == -1) {
+            // Fehler beim Empfangen der Nachricht
+            if(errno != ENOMSG) {
+                fprintf(stderr, "Fehler beim Empfangen der Nachricht: %s\n", strerror(errno));
+
+            }
+        } else if(rec_msg.text[0] != '\0') {
+            printf("\nNachricht empfangen:\t%s\n", rec_msg.text);
+            //Handling der Nachricht:
+            char* token = strtok(rec_msg.text, ":");
+            char* token2 = strtok(NULL, ":");
+            printf("\t->Quelldatei:\t%s\n\t->Zieldatei:\t%s\n", token, token2);
+            rec_msg.text[0] = '\0'; // Buffer leeren
+            printf("\n");
+        }*/
