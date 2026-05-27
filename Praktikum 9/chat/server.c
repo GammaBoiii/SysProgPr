@@ -30,7 +30,7 @@ void cleanup() {
 
 struct message {
     long type;
-    char text[125]; // GLEICHE GRÖ?E WIE BEIM CLIENT!!!
+    char text[105]; // GLEICHE GRÖ?E WIE BEIM CLIENT!!!
 };
 
 int main()
