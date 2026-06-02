@@ -74,7 +74,7 @@ int main()
     else
     {
         // Elternprozess
-        signal(SIGUSR2, signalHandlerP);
+        signal(SIGUSR2, signalHandlerP);qq
         doParent(npid);
     }
 
