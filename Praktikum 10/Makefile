@@ -18,6 +18,9 @@ erzeuger.o: erzeuger.c commonfile.h
 ringbuffer: ringbuffer.o commonfile.h
 	gcc $(CFLAGS) -o ringbuffer ringbuffer.o
 
+ringbuffer.o: ringbuffer.c commonfile.h
+	gcc $(CFLAGS) -c ringbuffer.c
+
 .PHONY: clean
 clean:
 	rm -f *.o verbraucher erzeuger ringbuffer

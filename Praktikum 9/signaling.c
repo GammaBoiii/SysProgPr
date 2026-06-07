@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <unistd.h>
+#include <sys/wait.h>
+
+#define jonascounter 3
 
 void signalHandlerP(int signum)
 {
@@ -19,7 +22,7 @@ void signalHandlerC(int signum)
 void doChild()
 {
     int cnt = 0;
-    while (cnt < 5)
+    while (cnt < jonascounter)
     {
         //printf("kindprozess wartet auf signal\n");
         
@@ -42,7 +45,7 @@ void doParent(int npid)
     kill(npid, SIGUSR2);
     
     int cnt = 0;
-    while (cnt < 4)
+    while (cnt < jonascounter-1)
     {
         //printf("elternprozess wartet auf signal\n");
         
@@ -55,6 +58,7 @@ void doParent(int npid)
         kill(npid, SIGUSR2);
         
     }
+    wait(NULL);
 }
 
 int main()
@@ -74,7 +78,7 @@ int main()
     else
     {
         // Elternprozess
-        signal(SIGUSR2, signalHandlerP);qq
+        signal(SIGUSR2, signalHandlerP);
         doParent(npid);
     }
 
