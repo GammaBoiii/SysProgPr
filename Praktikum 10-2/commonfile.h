@@ -86,7 +86,7 @@ int P_safe(int semid, int semnum) {
                 if(timeouts < 2) {
                     timeouts++;
                     alarm(1);
-                    timeout_triggered = 0; //timer zurücksetzen, damit es nicht direkt wieder getriggert wird, wenn es schon getrig
+                    timeout_triggered = 0;
                     continue;;
                 } else {
                     printf("\n");
@@ -119,6 +119,7 @@ void V(int semid, int semnum) {
 void setupSems(int semid) {
     union semun args; 
     // Semaphore: max Prozesse, die erzeugen dürfen
+    // DEPRICATED
     args.val = 1;
     if(semctl(semid, 0, SETVAL, args) < 0) {
         perror("semctl 0");
@@ -140,6 +141,7 @@ void setupSems(int semid) {
     }
 
     // Semaphore: max Prozesse, die konsumieren dürfen
+    // DEPRICATED
     args.val = 1;
     if(semctl(semid, 3, SETVAL, args) < 0) {
         perror("semctl 3");

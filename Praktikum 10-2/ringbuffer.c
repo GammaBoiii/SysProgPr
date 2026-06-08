@@ -17,8 +17,6 @@ int main(int argc, char const *argv[])
     // Argumente checken
     if (argc != 2)
     {
-        signal(SIGINT, cleanExit);  // signalhandler für sauberes aufräumen bei strg+c
-        signal(SIGTERM, cleanExit); // signalhandler für sauberes aufräumen bei kill
         fprintf(stderr, "Anwendung: %s <QUelldatei>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
@@ -53,7 +51,7 @@ int main(int argc, char const *argv[])
         perror("shmdt");
         exit(EXIT_FAILURE);
     }
-
+    
     // Semaphorne erstellen
     int semid;
     if ((semid = semget(key, 4, IPC_CREAT | IPC_EXCL | 0600)) < 0)
@@ -65,6 +63,9 @@ int main(int argc, char const *argv[])
     myCleaner.semid = semid;
     // Semaphoren initiieren
     setupSems(semid);
+
+    signal(SIGINT, cleanExit);  // signalhandler für sauberes aufräumen bei strg+c
+    signal(SIGTERM, cleanExit); // signalhandler für sauberes aufräumen bei kill
 
     int npid;
     if ((npid = fork()) < 0)
@@ -126,11 +127,6 @@ int doParent(int shmid, int semid, const char *path)
 
     while ((cch = fgetc(source)) != EOF)
     {
-        P(semid, 0);
-        V(semid, 0); // verhindert deadlock, wenn buffer voll ist,
-                     // sonst blockiert P(semid,1) ewig, weil verbraucher nicht in sem0 reinkommt,
-                     // wenn es erst am Ende befreit werden würde (daher das anklopfen
-
         P(semid, 1); // nach schreibplatz im buffer schaue
         rb->buffer[rb->in_pos] = cch;
         rb->in_pos = (rb->in_pos + 1) % MEMSZE; // ringbuffer, daher modulo
@@ -166,18 +162,21 @@ void doChild(int shmid, int semid)
     }
 
     signal(SIGALRM, handleTimeout);
-    signal(SIGINT, cleanExitChild);
-    signal(SIGTERM, cleanExitChild);
+    //signal(SIGINT, cleanExitChild);
+    //signal(SIGTERM, cleanExitChild);
+    signal(SIGINT, SIG_IGN);
+    signal(SIGTERM, SIG_IGN);
     int bytecount = 0;
 
-    while (1)
-    { // muss hier für "immer" warten, da ja nicht die dateigröße kennt
+    while (1) // muss hier für "immer" warten, da ja nicht die dateigröße kennt
+    { 
         alarm(1);
 
         if (P_safe(semid, 2) == 0)
         {
             break;
         }
+        timeouts = 0;
         alarm(0);
 
         char cch = rb->buffer[rb->out_pos];
