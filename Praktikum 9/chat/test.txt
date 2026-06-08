@@ -1,0 +1,5 @@
+mach mal ein struct und versuch mal einmal 
+ein wert mit dem namen auszulesen (standard lol)
+und einmal mittels feld-speicehr auslesen. Quasi wie 
+bei dem msg struct, der macht das wahrscheinlich auch 
+weil der den namen nicht kennt.
