@@ -16,12 +16,11 @@ struct Cleaner myCleaner;
 
 void handleTimeout(int signum) {
     (void)signum; //warnung bei unused parameter umgehen..
-   // printf("Keine Nachricht für 3 Sekunden empfangen. Tschüss\n");
     timeout_triggered = 1;
     //HIER BLOß KEIN EXIT!
 }
 
-int doParent(int shmid, int semid, const char *path); // erzeuger
+int doParent(pid_t npid, int shmid, int semid, const char *path); // erzeuger
 void doChild(int shmid, int semid);                    // verbraucher
 
 // hilfsmethode für putsem
@@ -29,7 +28,7 @@ void P(int semid, int semnum) {
     struct sembuf op = {
         semnum,
         -1,
-        0 // SEM_UNDO autom. Freigeben der Semaphoren (man semop) -> schlgt bei großen binärdateien fehl!!!
+        0
      };
     if(semop(semid, &op, 1) < 0) {
         perror("semop P");
@@ -38,7 +37,7 @@ void P(int semid, int semnum) {
 }
 
 //hilfsmethode für putsem, aber mit absicherung vor anderen unterbrechungen/signalen
-//erstaz für P() bei dem 3Sekunden Timer
+//erstaz für P() bei dem Timer im Verbraucher
 int P_safe(int semid, int semnum) {
     struct sembuf op = { semnum, -1, 0 };
     
@@ -54,11 +53,11 @@ int P_safe(int semid, int semnum) {
                     continue;
                 } else {
                     printf("\n");
-                    return 0; //timer ausgelöst
+                    return 0;
                 }
         
             } else {
-                continue; //kein timer signal, also erstmal weiter warten
+                continue; //kein timer signal (sondern andere Unterbrechung), also erstmal weiter warten
             }
         }
         perror("semop P safe");
@@ -82,13 +81,6 @@ void V(int semid, int semnum) {
 
 void setupSems(int semid) {
     union semun args; 
-    // Semaphore: max Prozesse, die erzeugen dürfen
-    // DEPRICATED
-    /*args.val = 1;
-    if(semctl(semid, 0, SETVAL, args) < 0) {
-        perror("semctl 0");
-        exit(EXIT_FAILURE);
-    }*/ 
 
     // Semaphorne: freie bytes (256)
     args.val = MEMSZE;
@@ -103,22 +95,16 @@ void setupSems(int semid) {
         perror("semctl 2");
         exit(EXIT_FAILURE);
     }
-
-    // Semaphore: max Prozesse, die konsumieren dürfen
-    // DEPRICATED
-    /*args.val = 1;
-    if(semctl(semid, 3, SETVAL, args) < 0) {
-        perror("semctl 3");
-        exit(EXIT_FAILURE);
-    } */
 }
 
 
 void cleanup() {
     printf("Aufräumarbeiten werden durchgeführt...\n");
+    // Shared mem auflösen
     if(shmctl(myCleaner.shmid, IPC_RMID, NULL) < 0) {
         perror("shmctl IPC_RMID");
     }
+    // Semaphoren auflösen
     if(semctl(myCleaner.semid, 0, IPC_RMID) < 0) {
         perror("semctl IPC_RMID");
     }
@@ -212,7 +198,7 @@ int main(int argc, char const *argv[])
         signal(SIGTERM, cleanExit); // signalhandler für sauberes aufräumen bei kill
 
         // Übernimmt erzeugerprozess
-        if((doParent(shmid, semid, argv[1]) == EXIT_FAILURE)) {
+        if((doParent(npid, shmid, semid, argv[1]) == EXIT_FAILURE)) {
             // wenn doParent fehlschlägt, soll auch der kindprozess nicht weiterlaufen, da sonst evtl. unkontrolliert auf die semaphoren/shmem zugegriffen wird, die ja vielleicht schon gelöscht wurden
             kill(npid, SIGTERM); //kindprozess mit signal beenden
             wait(NULL); //auf kind warten
@@ -233,7 +219,7 @@ int main(int argc, char const *argv[])
     return 0;
 }
 
-int doParent(int shmid, int semid, const char *path)
+int doParent(pid_t npid, int shmid, int semid, const char *path)
 {
     RingBuffer *rb;
     if ((rb = shmat(shmid, NULL, 0)) == (RingBuffer *)-1)
@@ -252,8 +238,29 @@ int doParent(int shmid, int semid, const char *path)
     int cch;           // current char der gelesend wird
     int bytecount = 0; // zum tracken der bytes, um die '*' auszugeben
 
+    int childstatus;
     while ((cch = fgetc(source)) != EOF)
     {
+
+        // WEnn das Kind plötzlich stirbt, soll aufgeräumt und beendet werden
+        pid_t checkchild = waitpid(npid, &childstatus, WNOHANG);
+        if(checkchild > 0) {
+            fprintf(stderr, "Kindprozess gestorben.\n");
+            if ((fclose(source)) != 0)
+            {
+                perror("fclose");
+                return EXIT_FAILURE;
+            }
+            if ((shmdt(rb)) < 0)
+            {
+                perror("shmdt");
+                return EXIT_FAILURE;
+            }
+            return EXIT_FAILURE;
+        } else if (checkchild < 0) {
+            perror("child waitpid failed");
+        }
+
         P(semid, 0); // nach schreibplatz im buffer schaue
         rb->buffer[rb->in_pos] = cch;
         rb->in_pos = (rb->in_pos + 1) % MEMSZE; // ringbuffer, daher modulo
@@ -267,8 +274,16 @@ int doParent(int shmid, int semid, const char *path)
         }
     }
 
-    fclose(source);
-    shmdt(rb);
+    if ((fclose(source)) != 0)
+    {
+        perror("fclose");
+        return EXIT_FAILURE;
+    }
+    if ((shmdt(rb)) < 0)
+    {
+        perror("shmdt");
+        return EXIT_FAILURE;
+    }
     return EXIT_SUCCESS;
 }
 

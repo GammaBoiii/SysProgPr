@@ -10,4 +10,4 @@ ringbuffer.o: ringbuffer.c commonfile.h
 
 .PHONY: clean
 clean:
-	rm -f *.o ringbuffer
+	rm -f *.o ringbuffer target.dat
