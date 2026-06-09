@@ -1,12 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/ipc.h>   //ftok
-#include <sys/types.h> //ftok
+#include <sys/types.h> //var types
 #include <sys/shm.h>   //shared memory
 #include <sys/sem.h>   //semaphoren
 #include <unistd.h>    //fork
 #include <signal.h>    //signal handling
 #include <sys/wait.h>  //wait (für child)
+#include <errno.h>
 #include "commonfile.h"
 
 volatile sig_atomic_t timeout_triggered = 0; //diese variable ist signal (asynchron) sicher
@@ -304,8 +305,6 @@ void doChild(int shmid, int semid)
     }
 
     signal(SIGALRM, handleTimeout);
-    //signal(SIGINT, cleanExitChild);
-    //signal(SIGTERM, cleanExitChild);
     signal(SIGINT, SIG_IGN);
     signal(SIGTERM, SIG_IGN);
     int bytecount = 0;
