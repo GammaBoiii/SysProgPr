@@ -53,18 +53,18 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    //Client schickt pid zu identifizierung:
+    // Client schickt pid zu Identifizierung:
     pid_t pid = getpid();
     pid_t* pidp = &pid;
     header.type = MSG_IDENT;
     header.size = sizeof(pid_t);
-    if(send(sock, &header, sizeof(Header),0 ) < 0) { // header kündigt payload an
+    if(send(sock, &header, sizeof(Header),MSG_NOSIGNAL ) < 0) { // header kündigt payload an (kein feste Buffergröße für send!!)
         perror("Senden fehlgeschlagen");
         fclose(src_file);
         close(sock);
         return EXIT_FAILURE;
     }
-    if(send(sock, pidp, header.size,0)< 0) { // payload
+    if(send(sock, pidp, header.size,MSG_NOSIGNAL)< 0) { // payload
         perror("Senden fehlgeschlagen");
         fclose(src_file);
         close(sock);
@@ -74,14 +74,14 @@ int main(int argc, char *argv[])
     // Als erstes Dateiname senden
     header.type = MSG_FILENAME;
     header.size = strlen(dest_path) + 1; // Inklusive Nullterminator \0
-    if ((send(sock, &header, sizeof(Header), 0)) < 0)
+    if ((send(sock, &header, sizeof(Header), MSG_NOSIGNAL)) < 0)
     {
         perror("Senden fehlgeschlagen");
         fclose(src_file);
         close(sock);
         return EXIT_FAILURE;
     }
-    if ((send(sock, dest_path, header.size, 0)) < 0)
+    if ((send(sock, dest_path, header.size, MSG_NOSIGNAL)) < 0)
     {
         perror("Senden fehlgeschlagen");
         fclose(src_file);
@@ -130,13 +130,13 @@ int main(int argc, char *argv[])
         header.size = bytes_read;
 
         // Header senden
-        if (send(sock, &header, sizeof(Header), 0) == -1)
+        if (send(sock, &header, sizeof(Header), MSG_NOSIGNAL) == -1)
         {
             perror("Fehler beim Senden des Headers");
             break;
         }
         // Palyoad senden
-        if (send(sock, buffer, bytes_read, 0) == -1)
+        if (send(sock, buffer, bytes_read, MSG_NOSIGNAL) == -1)
         {
             perror("Fehler beim Senden der Daten");
             break;
@@ -149,14 +149,14 @@ int main(int argc, char *argv[])
         perror("Fehler beim Lesen der Quelldatei");
         header.type = MSG_ERROR;
         header.size = 0;
-        send(sock, &header, sizeof(Header), 0);
+        send(sock, &header, sizeof(Header), MSG_NOSIGNAL);
     }
     else
     {
         // 3. Phase: Fertig signalisieren
         header.type = MSG_DONE;
         header.size = 0;
-        send(sock, &header, sizeof(Header), 0);
+        send(sock, &header, sizeof(Header), MSG_NOSIGNAL);
         printf("Datei erfolgreich übertragen.\n");
     }
 
