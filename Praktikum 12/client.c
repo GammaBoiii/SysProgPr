@@ -9,7 +9,7 @@
 
 int sock = -1;
 FILE *src_file = NULL;
-volatile sig_atomic_t interrupted = 0;
+volatile sig_atomic_t interrupted = 0; //wäre mit atexit besser..
 
 void handle_sigint(int sig) {
     (void) sig;
