@@ -8,6 +8,7 @@
 #include "commonfile.h"
 
 int sock = -1;
+int canceled = 0;
 FILE *src_file = NULL;
 volatile sig_atomic_t interrupted = 0; //wäre mit atexit besser..
 
@@ -145,6 +146,7 @@ int main(int argc, char *argv[])
         if (interrupted)
         {
             printf("\n[Client] Übertragung durch Benutzer abgebrochen.\n");
+            canceled += 1;
             // Dem Server Bescheid geben, dass wir abbrechen!
             header.type = MSG_ERROR;
             header.size = 0;
@@ -206,7 +208,15 @@ int main(int argc, char *argv[])
             perror("Fehler beim Senden des DONE");
             return EXIT_FAILURE;
         }
-        printf("Datei erfolgreich übertragen.\n");
+
+        if (canceled == 0)
+        {
+            printf("Datei erfolgreich übertragen.\n");
+        }
+        else
+        {
+            printf("Dateiübertragung zwischendurch abgebrochen.!");
+        }
     }
 
     fclose(src_file);
