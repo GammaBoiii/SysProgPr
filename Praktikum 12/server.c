@@ -45,7 +45,7 @@ void* client_handler(void* arg) {
         close(sock);
         return NULL;
     }
-    if(read(sock, &pid, header.size) < 0) {
+    if(read(sock, &pid, header.size) <= 0) {
         printf("Lesen fehlgeschlagen");
         close(sock);
         return NULL;
@@ -59,7 +59,7 @@ void* client_handler(void* arg) {
     }
 
     memset(buffer, 0, sizeof(buffer));
-    if((read(sock, buffer, header.size)) < 0) {
+    if((read(sock, buffer, header.size)) <= 0) {
         printf("Lesen fehlgeschlagen");
         close(sock);
         return NULL;
@@ -92,7 +92,7 @@ void* client_handler(void* arg) {
     if((send(sock, &header, sizeof(Header), 0)) < 0) {
         printf("[Thread] Fehler: Message konnte nicht zugestellt werden.\n");
         header.type = MSG_ERROR;
-        send(sock, &header, sizeof(header),0);
+        // send(sock, &header, sizeof(header),0); //das hier ist sinnlos
         close(sock);
         return NULL;
     }
@@ -119,7 +119,7 @@ void* client_handler(void* arg) {
             int bytes_received = 0;
             while (bytes_received < header.size) {
                 int n = read(sock, buffer + bytes_received, header.size - bytes_received);
-                if (n <= 0) break;
+                if (n <= 0) break; //gibt nix mehr zum schreiben
                 bytes_received += n;
             }
 

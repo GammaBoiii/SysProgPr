@@ -4,7 +4,17 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <signal.h>
 #include "commonfile.h"
+
+int sock = -1;
+FILE *src_file = NULL;
+volatile sig_atomic_t interrupted = 0;
+
+void handle_sigint(int sig) {
+    (void) sig;
+    interrupted = 1;
+}
 
 int main(int argc, char *argv[])
 {
@@ -18,7 +28,7 @@ int main(int argc, char *argv[])
     char *dest_path = argv[2];
 
     // Prüfen, ob Quelldatei existiert und lesbar ist
-    FILE *src_file = fopen(src_path, "rb"); // b wieder Absicherung, siehe man fopen
+    src_file = fopen(src_path, "rb"); // b wieder Absicherung, siehe man fopen
     if (!src_file)
     {
         perror("Fehler beim Öffnen der Quelldatei");
@@ -27,7 +37,7 @@ int main(int argc, char *argv[])
 
     printf("Client startet mit ID %d\n", getpid());
 
-    int sock = -1;
+   // int sock = -1;
     struct sockaddr_un address;
     Header header;
     char buffer[BUFFER_SIZE];
@@ -39,6 +49,9 @@ int main(int argc, char *argv[])
         fclose(src_file);
         return EXIT_FAILURE;
     }
+
+    signal(SIGINT, handle_sigint);
+    if(interrupted) goto cleanup_error;
 
     memset(&address, 0, sizeof(struct sockaddr_un));
     address.sun_family = AF_UNIX; //nur lokal
@@ -52,7 +65,7 @@ int main(int argc, char *argv[])
         close(sock);
         return EXIT_FAILURE;
     }
-
+    if (interrupted) goto cleanup_error;
     // Client schickt pid zu Identifizierung:
     pid_t pid = getpid();
     pid_t* pidp = &pid;
@@ -70,7 +83,7 @@ int main(int argc, char *argv[])
         close(sock);
         return EXIT_FAILURE;
     }
-
+    if (interrupted) goto cleanup_error;
     // Als erstes Dateiname senden
     header.type = MSG_FILENAME;
     header.size = strlen(dest_path) + 1; // Inklusive Nullterminator \0
@@ -126,18 +139,40 @@ int main(int argc, char *argv[])
     int bytes_read;
     while ((bytes_read = fread(buffer, 1, BUFFER_SIZE, src_file)) > 0)
     {
+
+        // Interrupt (strg + c)
+        if (interrupted)
+        {
+            printf("\n[Client] Übertragung durch Benutzer abgebrochen.\n");
+            // Dem Server Bescheid geben, dass wir abbrechen!
+            header.type = MSG_ERROR;
+            header.size = 0;
+            if (send(sock, &header, sizeof(Header), MSG_NOSIGNAL) == -1)
+            {
+                fclose(src_file);
+                close(sock);
+                perror("Fehler beim Senden des Errors");
+                break;
+            }
+            break;
+        }
+
         header.type = MSG_DATA;
         header.size = bytes_read;
 
         // Header senden
         if (send(sock, &header, sizeof(Header), MSG_NOSIGNAL) == -1)
         {
+            fclose(src_file);
+            close(sock);
             perror("Fehler beim Senden des Headers");
             break;
         }
         // Palyoad senden
         if (send(sock, buffer, bytes_read, MSG_NOSIGNAL) == -1)
         {
+            fclose(src_file);
+            close(sock);
             perror("Fehler beim Senden der Daten");
             break;
         }
@@ -149,18 +184,36 @@ int main(int argc, char *argv[])
         perror("Fehler beim Lesen der Quelldatei");
         header.type = MSG_ERROR;
         header.size = 0;
-        send(sock, &header, sizeof(Header), MSG_NOSIGNAL);
+        if(send(sock, &header, sizeof(Header), MSG_NOSIGNAL) <= 0) {
+            fclose(src_file);
+            close(sock);
+            perror("Fehler beim Senden des ERROR");
+            return EXIT_FAILURE;
+        }
+        fclose(src_file);
+        close(sock);
+        return EXIT_FAILURE;
     }
     else
     {
         // 3. Phase: Fertig signalisieren
         header.type = MSG_DONE;
         header.size = 0;
-        send(sock, &header, sizeof(Header), MSG_NOSIGNAL);
+        if(send(sock, &header, sizeof(Header), MSG_NOSIGNAL) <= 0) {
+            fclose(src_file);
+            close(sock);
+            perror("Fehler beim Senden des DONE");
+            return EXIT_FAILURE;
+        }
         printf("Datei erfolgreich übertragen.\n");
     }
 
     fclose(src_file);
     close(sock);
     return EXIT_SUCCESS;
+
+    cleanup_error:
+    if(src_file) fclose(src_file);
+    if(sock != -1) close(sock);
+    return EXIT_FAILURE;
 }
