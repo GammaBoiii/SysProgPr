@@ -28,7 +28,7 @@ void handle_sigint(int sig) {
 
 // Die Thread-Funktion für jeden Client
 void* client_handler(void* arg) {
-    int sock = *(int*)arg;
+    int sock = *(int*)arg; //das ist jetzt auf dem thread stack (privat)
     free(arg); // Dynamischen Speicher für die Socket-ID sofort freigeben
 
     // Thread in den detached Zustand versetzen, um Ressourcenlecks zu vermeiden
@@ -36,9 +36,22 @@ void* client_handler(void* arg) {
 
     Header header;
     char buffer[BUFFER_SIZE];
+    pid_t pid;
     FILE* dest_file = NULL;
 
-    // 1. Phase: Erwarte Dateinamen
+    // Client id senden (zum Identifizieren in der Konsole)
+    if(read(sock, &header, sizeof(Header)) <= 0 || header.type != MSG_IDENT) {
+        printf("[Thread] Protokollfehler beim Empfang der Client ID.\n");
+        close(sock);
+        return NULL;
+    }
+    if(read(sock, &pid, header.size) < 0) {
+        printf("Lesen fehlgeschlagen");
+        close(sock);
+        return NULL;
+    }
+
+    // hier sollte als erstes Dateiname ankommen
     if (read(sock, &header, sizeof(Header)) <= 0 || header.type != MSG_FILENAME) {
         printf("[Thread] Protokollfehler beim Empfang des Dateinamens.\n");
         close(sock);
@@ -46,8 +59,12 @@ void* client_handler(void* arg) {
     }
 
     memset(buffer, 0, sizeof(buffer));
-    read(sock, buffer, header.size);
-    printf("[Thread] Client möchte Datei schreiben: %s\n", buffer);
+    if((read(sock, buffer, header.size)) < 0) {
+        printf("Lesen fehlgeschlagen");
+        close(sock);
+        return NULL;
+    }
+    printf("[Thread] Client %d möchte Datei schreiben: %s\n",pid, buffer);
 
     // Prüfen, ob die Datei bereits existiert
     struct stat st;
@@ -62,7 +79,7 @@ void* client_handler(void* arg) {
 
     // Datei zum Schreiben öffnen
     dest_file = fopen(buffer, "wb");
-    if (!dest_file) {
+    if (!dest_file) { //fopen returned nur NULL, nicht -1!
         printf("[Thread] Fehler: Datei konnte nicht erstellt werden.\n");
         header.type = MSG_ERROR;
         send(sock, &header, sizeof(Header), 0);
@@ -72,9 +89,15 @@ void* client_handler(void* arg) {
 
     // Bestätigung an Client senden
     header.type = MSG_OK;
-    send(sock, &header, sizeof(Header), 0);
+    if((send(sock, &header, sizeof(Header), 0)) < 0) {
+        printf("[Thread] Fehler: Message konnte nicht zugestellt werden.\n");
+        header.type = MSG_ERROR;
+        send(sock, &header, sizeof(header),0);
+        close(sock);
+        return NULL;
+    }
 
-    // 2. Phase: Daten empfangen
+    // Daten empfangen
     while (1) {
         if (read(sock, &header, sizeof(Header)) <= 0) {
             printf("[Thread] Verbindungsabbruch durch den Client.\n");
@@ -115,16 +138,6 @@ void* client_handler(void* arg) {
     return NULL;
 }
 
-void* checksocket(void* arg) {
-
-    while(1) {
-        sleep(1);
-        printf("prüfe server status..");
-
-    }
-    return NULL;
-}
-
 int main() {
     struct sockaddr_un address;
 
@@ -138,9 +151,9 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    memset(&address, 0, sizeof(struct sockaddr_un)); // 0 setzen
+    memset(&address, 0, sizeof(struct sockaddr_un)); // 0 setzen "={0}"
     address.sun_family = AF_UNIX; // kein internt
-    strncpy(address.sun_path, SOCKET_PATH, sizeof(address.sun_path) - 1); //pfad /tmp/mysocket + extra zeiche für ggf \0
+    strncpy(address.sun_path, SOCKET_PATH, sizeof(address.sun_path) - 1); //pfad /tmp/mysocket + extra zeiche für ggf \0 (siehe man strncpy caveats)
 
     // löscht datei (laut man), also vorher Socket clearne
     unlink(SOCKET_PATH);
