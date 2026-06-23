@@ -39,7 +39,7 @@ void* client_handler(void* arg) {
     pid_t pid;
     FILE* dest_file = NULL;
 
-    // Client id senden (zum Identifizieren in der Konsole)
+    // Client id empfangen (zum Identifizieren in der Konsole)
     if(read(sock, &header, sizeof(Header)) <= 0 || header.type != MSG_IDENT) {
         printf("[Thread] Protokollfehler beim Empfang der Client ID.\n");
         close(sock);

@@ -34,6 +34,7 @@ int main(int argc, char *argv[])
         perror("Fehler beim Öffnen der Quelldatei");
         return EXIT_FAILURE;
     }
+    signal(SIGINT, handle_sigint);
 
     printf("Client startet mit ID %d\n", getpid());
 
@@ -50,7 +51,7 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    signal(SIGINT, handle_sigint);
+    
     if(interrupted) goto cleanup_error;
 
     memset(&address, 0, sizeof(struct sockaddr_un));
